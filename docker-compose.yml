@@ -1,0 +1,37 @@
+version: "3"
+services:
+  cassandra:
+    image: cassandra
+    container_name: cassandra
+    restart: always     
+    ports:
+      - 8081:9042
+    environment:
+      CASSANDRA_CLUSTER_NAME: my_cluster
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_DC: my_datacenter
+  cassandra-load-keyspace:
+    container_name: cassandra-load-keyspace
+    image: cassandra
+    depends_on:
+      - cassandra
+    volumes:
+      - ./init.cql:/init.cql
+    command: /bin/bash -c "sleep 60 && echo loading cassandra keyspace && cqlsh cassandra -f /init.cql"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s      
+  express-api:
+    image: resulguldibi/express-js-cassandra-sample
+    container_name: express-api
+    restart: always
+    depends_on:
+      - cassandra
+      - cassandra-load-keyspace
+    links:
+      - cassandra  
+    ports:
+      - 8080:8080
